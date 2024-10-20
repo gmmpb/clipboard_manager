@@ -1,5 +1,4 @@
 # Clipboard Manager
-
 A Python-based clipboard manager with a graphical user interface (GUI) built using Tkinter. This tool allows you to keep track of your clipboard history, including both text and images, and easily access previous clipboard entries.
 
 ## Features
@@ -33,9 +32,9 @@ A Python-based clipboard manager with a graphical user interface (GUI) built usi
     pip install -r requirements.txt
     ```
 
-3. **Ensure `xclip` is installed** (Linux):
+3. **Ensure `xclip` and `tkinter` are installed** (Linux):
     ```sh
-    sudo apt-get install xclip
+    sudo apt-get install xclip python3-tk
     ```
 
 ## Usage
@@ -50,6 +49,44 @@ python clipboard_manager.py
 - **Show UI**: Press `Ctrl+Y` to show the clipboard history UI near the cursor position.
 - **Scroll**: Use the mouse wheel to scroll through the clipboard history.
 - **Select Entry**: Double-click on an entry to move it to the top and set it as the current clipboard content.
+
+## Building with PyInstaller
+
+To build the clipboard manager into a standalone executable using PyInstaller, run the following command:
+```sh
+pyinstaller --onefile --windowed --hidden-import=PIL --hidden-import=PIL.Image --hidden-import=PIL.ImageTk --hidden-import=tkinter --hidden-import=PIL._tkinter_finder main.py
+```
+
+This will generate a single executable file in the `dist` directory.
+
+## Running on Boot (Linux)
+
+To run the clipboard manager on boot, you can create a systemd service:
+
+1. **Create a service file**:
+    ```sh
+    sudo nano /etc/systemd/system/clipboard_manager.service
+    ```
+
+2. **Add the following content**:
+    ```ini
+    [Unit]
+    Description=Clipboard Manager
+
+    [Service]
+    ExecStart=/path/to/your/executable
+    Restart=always
+    User=yourusername
+
+    [Install]
+    WantedBy=default.target
+    ```
+
+3. **Enable and start the service**:
+    ```sh
+    sudo systemctl enable clipboard_manager.service
+    sudo systemctl start clipboard_manager.service
+    ```
 
 ## Logging
 
