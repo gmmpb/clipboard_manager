@@ -71,15 +71,20 @@ To run the clipboard manager on boot, you can create a systemd service:
 2. **Add the following content**:
     ```ini
     [Unit]
-    Description=Clipboard Manager
+    Description=Clipboard Manager Service
+    After=network.target
 
     [Service]
-    ExecStart=/path/to/your/executable
+    ExecStart=/usr/local/bin/clipboard_manager
+    WorkingDirectory=/usr/local/bin
+    StandardOutput=inherit
+    StandardError=inherit
     Restart=always
-    User=yourusername
+    User=m<yourusername>
+    Environment="DISPLAY=:0" "XAUTHORITY=/home/<yourusername>/.Xauthority"
 
     [Install]
-    WantedBy=default.target
+    WantedBy=multi-user.target
     ```
 
 3. **Enable and start the service**:
