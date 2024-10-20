@@ -23,7 +23,7 @@ A Python-based clipboard manager with a graphical user interface (GUI) built usi
 
 1. **Clone the repository**:
     ```sh
-    git clone https://github.com/yourusername/clipboard_manager.git
+    git clone https://github.com/gmmpb/clipboard_manager.git
     cd clipboard_manager
     ```
 
