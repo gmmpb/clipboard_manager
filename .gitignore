@@ -13,6 +13,7 @@ develop-eggs/
 dist/
 downloads/
 eggs/
+own/
 .eggs/
 lib/
 lib64/
@@ -23,6 +24,7 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+clipboard_manager.spec
 
 # Installer logs
 pip-log.txt

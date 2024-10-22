@@ -6,8 +6,7 @@ import time
 import pyautogui
 from PIL import Image, ImageTk, UnidentifiedImageError
 import io
-from pynput import keyboard
-from pynput.keyboard import Key
+from pynput import keyboard  # Using pynput for key detection
 import logging
 
 # Configure logging
@@ -25,11 +24,17 @@ class ClipboardManager:
         self.root.geometry("350x450")  # Adjusted window size for a more professional look
         self.root.resizable(False, False)  # Disable resizing
         self.root.wait_visibility(self.root)
-        self.root.attributes('-alpha', 0.8)  # Set window transparency
+        self.root.wm_attributes('-alpha', 0.8)  # Set window transparency
+        self.root.overrideredirect(True)  # Remove window decorations
 
         # Create a main frame for content
         self.main_frame = tk.Frame(root, bg='#1e1e1e')
         self.main_frame.pack(fill="both", expand=True, padx=10, pady=10)
+
+        # Create a custom close button
+        close_button = tk.Button(self.main_frame, text="X", command=self.on_close, fg="#ffffff", bg="#ff5f5f", 
+                                 font=("Segoe UI", 10, "bold"), relief="flat", bd=0, padx=5, pady=2)
+        close_button.pack(anchor="ne", pady=5)
 
         # Create a canvas for clipboard items
         self.canvas = tk.Canvas(self.main_frame, bg='#1e1e1e', bd=0, highlightthickness=0)
@@ -63,11 +68,33 @@ class ClipboardManager:
         # Hide the window initially
         self.root.withdraw()
 
-        # Set up the global hotkey listener
-        self.listener = keyboard.GlobalHotKeys({
-            '<ctrl>+y': self.show_ui
-        })
-        self.listener.start()
+        # Start listening for hotkeys using pynput
+        self.start_hotkey_listener()
+
+    def start_hotkey_listener(self):
+        """Start a listener for the Alt+Y hotkey using pynput."""
+        listener_thread = threading.Thread(target=self.listen_for_hotkey)
+        listener_thread.daemon = True
+        listener_thread.start()
+
+    def listen_for_hotkey(self):
+        """Listen for the Alt+Y hotkey and display the UI when pressed."""
+        def on_press(key):
+            try:
+                if key == keyboard.Key.alt_l or key == keyboard.Key.alt_r:
+                    self.alt_pressed = True
+                elif key.char == 'y' and self.alt_pressed:
+                    self.show_ui()
+            except AttributeError:
+                pass
+
+        def on_release(key):
+            if key == keyboard.Key.alt_l or key == keyboard.Key.alt_r:
+                self.alt_pressed = False
+
+        self.alt_pressed = False
+        with keyboard.Listener(on_press=on_press, on_release=on_release) as listener:
+            listener.join()
 
     def show_ui(self):
         """Show the UI near the cursor position."""
@@ -76,6 +103,7 @@ class ClipboardManager:
         self.root.deiconify()
         self.root.lift()
         self.root.focus_force()
+        self.root.wm_attributes("-topmost", True)
         logging.info("UI shown at position (%d, %d)", x, y)
 
     def on_frame_configure(self, event):
@@ -118,12 +146,10 @@ class ClipboardManager:
         """Get clipboard text content using xclip."""
         try:
             result = subprocess.run(['xclip', '-selection', 'clipboard', '-o', '-t', 'text/plain'],
-                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-            if result.returncode == 0 and result.stdout:
-                content = result.stdout.strip()
-                return content
-            return None
-        except Exception as e:
+                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True)
+            content = result.stdout.strip()
+            return content if content else None
+        except subprocess.CalledProcessError as e:
             logging.error(f"Error getting clipboard text: {e}")
             return None
 
@@ -133,8 +159,8 @@ class ClipboardManager:
         for fmt in image_formats:
             try:
                 result = subprocess.run(['xclip', '-selection', 'clipboard', '-o', '-t', fmt],
-                                        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                if result.returncode == 0 and result.stdout:
+                                        stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+                if result.stdout:
                     # Validate if the data is a valid image
                     try:
                         image = Image.open(io.BytesIO(result.stdout))
@@ -144,25 +170,18 @@ class ClipboardManager:
                     except (UnidentifiedImageError, Image.DecompressionBombError, OSError) as e:
                         logging.error(f"Image format {fmt} is not valid: {e}")
                         continue  # Try the next format
-            except Exception as e:
+            except subprocess.CalledProcessError as e:
                 logging.error(f"Error accessing clipboard image with format {fmt}: {e}")
                 continue
         return None
 
     def add_to_history(self, item, content_type):
         """Add new item to clipboard history without duplication."""
-        # Check if the item is already in the history
-        for index, (item_type, existing_item) in enumerate(self.history):
-            if content_type == item_type and item == existing_item:
-                return  # Skip adding duplicates
-
-        # If no duplicate found, add the item
-        self.history.insert(0, (content_type, item))
-
-        if len(self.history) > self.history_limit:
-            self.history.pop()  # Ensure we don't exceed the history limit
-
-        self.update_canvas()
+        if not any(content_type == item_type and item == existing_item for item_type, existing_item in self.history):
+            self.history.insert(0, (content_type, item))
+            if len(self.history) > self.history_limit:
+                self.history.pop()  # Ensure we don't exceed the history limit
+            self.update_canvas()
 
     def update_canvas(self):
         """Update the canvas with the clipboard history."""
@@ -209,26 +228,22 @@ class ClipboardManager:
 
     def truncate_text(self, text, max_length):
         """Truncate text to fit within a specified length."""
-        if len(text) > max_length:
-            return text[:max_length] + "..."
-        return text
+        return text[:max_length] + "..." if len(text) > max_length else text
 
     def display_image_in_list(self, image_bytes):
         """Convert image to a thumbnail and display it."""
         try:
             image = Image.open(io.BytesIO(image_bytes))
             image.thumbnail((80, 80))  # Resize for thumbnail
-            photo = ImageTk.PhotoImage(image)
-            return photo
+            return ImageTk.PhotoImage(image)
         except Exception as e:
             logging.error(f"Error: Image format not supported. {e}")
             raise
 
     def on_item_double_click(self, index):
         """Handle double-click event: Move item to top and add to clipboard."""
-        item_type, item = self.history[index]
-        # Move the selected item to the top without creating a duplicate
-        self.history.insert(0, self.history.pop(index))
+        item_type, item = self.history.pop(index)
+        self.history.insert(0, (item_type, item))
         self.update_canvas()
 
         # Set the item in the clipboard
@@ -241,10 +256,10 @@ class ClipboardManager:
         """Set clipboard text content using xclip."""
         try:
             self.updating_clipboard = True
-            subprocess.run(['xclip', '-selection', 'clipboard'], input=text.encode('utf-8'))
+            subprocess.run(['xclip', '-selection', 'clipboard'], input=text.encode('utf-8'), check=True)
             self.last_clipboard_text = text  # Update last clipboard text
             self.last_clipboard_image = b""  # Clear last image
-        except Exception as e:
+        except subprocess.CalledProcessError as e:
             logging.error(f"Error setting clipboard content: {e}")
         finally:
             self.updating_clipboard = False
@@ -258,10 +273,10 @@ class ClipboardManager:
             output = io.BytesIO()
             image.save(output, format='PNG')
             png_data = output.getvalue()
-            subprocess.run(['xclip', '-selection', 'clipboard', '-t', 'image/png'], input=png_data)
+            subprocess.run(['xclip', '-selection', 'clipboard', '-t', 'image/png'], input=png_data, check=True)
             self.last_clipboard_image = png_data  # Update last clipboard image
             self.last_clipboard_text = ""  # Clear last text
-        except Exception as e:
+        except subprocess.CalledProcessError as e:
             logging.error(f"Error setting clipboard image: {e}")
         finally:
             self.updating_clipboard = False

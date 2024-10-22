@@ -5,7 +5,7 @@ A Python-based clipboard manager with a graphical user interface (GUI) built usi
 
 - **Clipboard History**: Keeps a history of the last 25 clipboard entries.
 - **Text and Image Support**: Supports both text and image clipboard entries.
-- **Global Hotkey**: Show the clipboard history UI using the global hotkey `Ctrl+Y`.
+- **Global Hotkey**: Show the clipboard history UI using the global hotkey `Alt+Y`.
 - **Scroll Support**: Scroll through the clipboard history using the mouse wheel.
 - **Transparency**: The UI window is semi-transparent for a sleek look.
 - **Logging**: Logs events and errors to `/var/log/clipboard_manager.log`.
@@ -46,7 +46,7 @@ python clipboard_manager.py
 
 ## How to Use
 
-- **Show UI**: Press `Ctrl+Y` to show the clipboard history UI near the cursor position.
+- **Show UI**: Press `Alt+Y` to show the clipboard history UI near the cursor position.
 - **Scroll**: Use the mouse wheel to scroll through the clipboard history.
 - **Select Entry**: Double-click on an entry to move it to the top and set it as the current clipboard content.
 
@@ -54,7 +54,12 @@ python clipboard_manager.py
 
 To build the clipboard manager into a standalone executable using PyInstaller, run the following command:
 ```sh
-pyinstaller --onefile --windowed --hidden-import=PIL --hidden-import=PIL.Image --hidden-import=PIL.ImageTk --hidden-import=tkinter --hidden-import=PIL._tkinter_finder main.py
+pyinstaller --onefile --windowed --hidden-import=PIL --hidden-import=PIL.Image --hidden-import=PIL.ImageTk --hidden-import=tkinter --hidden-import=PIL._tkinter_finder clipboard_manager.py
+```
+
+Move the executable to the desired location:
+```sh
+mv dist/clipboard_manager /usr/local/bin/clipboard_manager
 ```
 
 This will generate a single executable file in the `dist` directory.
@@ -92,6 +97,10 @@ To run the clipboard manager on boot, you can create a systemd service:
     sudo systemctl enable clipboard_manager.service
     sudo systemctl start clipboard_manager.service
     ```
+
+## Known Issues
+
+- **Shortcut Issue**: The global hotkey `Alt+Y` does not work when the desktop is the active window.
 
 ## Logging
 
